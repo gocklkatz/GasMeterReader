@@ -7,32 +7,10 @@ Upload a photo of your gas meter each morning; the backend stores the image and 
 ## Quickstart
 
 ```bash
-# Terminal 1 — backend (http://localhost:8080)
 ./mvnw spring-boot:run
-
-# Terminal 2 — frontend (http://localhost:4200)
-cd frontend && ng serve
 ```
 
-Open `http://localhost:4200` and sign in with the configured credentials (default: `admin` / `changeme`).
-
-## Frontend
-
-The Angular SPA lives in `frontend/` and has a login page plus two protected pages:
-
-**Login (`/login`)** — username and password form; on success a JWT token is stored in `sessionStorage`.
-
-**Upload (`/`)** — drag-and-drop or browse for one or more images, adjust timestamps if needed, and upload them all in parallel. Per-image progress and results are shown inline. Adding new images clears the previous results.
-
-**Browse (`/browse`)** — view all uploaded readings as an image grid with timestamps.
-
-The timestamp is auto-filled from the filename when it matches the `IMG_YYYYMMDD_HHMMSS` pattern.
-
-```bash
-cd frontend
-npm test -- --watch=false   # Run tests
-ng build                    # Production build
-```
+Sign in with the configured credentials (default: `admin` / `changeme`). See [frontend-web](../frontend-web/README.md) or [frontend-mobile](../frontend-mobile/README.md) for client setup.
 
 ## API
 
@@ -155,25 +133,16 @@ Point `app.image-storage.base-path` to a directory outside the web root and ensu
 ## Build & test
 
 ```bash
-# Backend
 ./mvnw spring-boot:run          # Run with defaults
 ./mvnw test                     # Run all tests
 ./mvnw package                  # Build executable JAR
 ./mvnw generate-sources         # Regenerate after api.yaml changes
-
-# Frontend
-cd frontend && npm test -- --watch=false
 ```
 
 ## Tech stack
 
-**Backend**
 - Java 21, Spring Boot 4.0.2, Spring Security 6
 - JJWT 0.12.6 (JWT)
 - OpenAPI Generator 7.12.0 (Maven plugin)
 - AWS SDK for Java v2 (S3)
 - JUnit 5, Mockito, AssertJ, spring-security-test
-
-**Frontend**
-- Angular 21, TypeScript 5.9, RxJS 7.8
-- Vitest 4 + jsdom
