@@ -1,0 +1,85 @@
+openapi: 3.0.3
+info:
+  title: Gas Meter API
+  version: 1.0.0
+paths:
+  /readings/{id}:
+    get:
+      tags:
+        - readings
+      operationId: getReadingById
+      summary: Get a gas meter reading by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A reading object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reading'
+        '404':
+          description: Reading not found
+  /readings:
+    get:
+      tags:
+        - readings
+      operationId: getAllReadings
+      summary: List all gas meter readings
+      responses:
+        '200':
+          description: List of readings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reading'
+    post:
+      tags:
+        - readings
+      operationId: createReading
+      summary: Upload a gas meter reading photo
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+                - timestamp
+              properties:
+                image:
+                  type: string
+                  format: binary
+                timestamp:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Reading created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reading'
+components:
+  schemas:
+    Reading:
+      type: object
+      properties:
+        id:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+        imagePath:
+          type: string
+      required:
+        - id
+        - timestamp
+        - imagePath

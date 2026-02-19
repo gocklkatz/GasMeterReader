@@ -1,0 +1,44 @@
+<div class="login-page">
+  <div class="login-card">
+    <h1 class="login-title">Gas Meter API</h1>
+    <p class="login-subtitle">Sign in to continue</p>
+
+    <form (ngSubmit)="submit()" class="login-form">
+      <div class="field">
+        <label for="username">Username</label>
+        <input
+          id="username"
+          type="text"
+          autocomplete="username"
+          [value]="username()"
+          (input)="username.set($any($event.target).value)"
+          [disabled]="loading()"
+        />
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          [value]="password()"
+          (input)="password.set($any($event.target).value)"
+          [disabled]="loading()"
+        />
+      </div>
+
+      @if (error()) {
+        <p class="error">{{ error() }}</p>
+      }
+
+      <button type="submit" [disabled]="loading() || !username() || !password()">
+        @if (loading()) {
+          <span class="spinner"></span> Signing in&hellip;
+        } @else {
+          Sign in
+        }
+      </button>
+    </form>
+  </div>
+</div>

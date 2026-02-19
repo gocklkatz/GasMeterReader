@@ -1,0 +1,23 @@
+# Backend (Spring Boot / Maven)
+backend/target/
+backend/.idea/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Frontend web (Angular)
+frontend-web/node_modules/
+frontend-web/dist/
+frontend-web/.angular/
+
+# Frontend mobile (Android)
+frontend-mobile/.gradle/
+frontend-mobile/.idea/
+frontend-mobile/.kotlin/
+frontend-mobile/app/build/
+frontend-mobile/build/
+frontend-mobile/local.properties
+frontend-mobile/*.iml
+
+# IDE / OS
+.DS_Store
+*.swp
+.vscode/

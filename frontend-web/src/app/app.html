@@ -1,0 +1,13 @@
+<nav class="nav">
+  <a routerLink="/" routerLinkActive="nav__link--active" [routerLinkActiveOptions]="{ exact: true }" class="nav__link">
+    Upload image(s)
+  </a>
+  <a routerLink="/browse" routerLinkActive="nav__link--active" class="nav__link">
+    Browse images
+  </a>
+  @if (authService.isLoggedIn()) {
+    <button class="nav__logout" (click)="logout()">Sign out</button>
+  }
+</nav>
+
+<router-outlet />

@@ -1,0 +1,31 @@
+<div class="browse-page">
+  <h1 class="page-title">Browse Readings</h1>
+
+  @if (loading()) {
+    <div class="state-message">Loading readings…</div>
+  } @else if (error()) {
+    <div class="state-message state-message--error">{{ error() }}</div>
+  } @else if (readings().length === 0) {
+    <div class="state-message">
+      No readings yet. <a routerLink="/">Upload one!</a>
+    </div>
+  } @else {
+    <div class="grid">
+      @for (reading of readings(); track reading.id) {
+        <div class="card">
+          <div class="card__thumb">
+            <img
+              [src]="imageUrl(reading.imagePath)"
+              [alt]="'Reading ' + reading.id"
+              class="card__img"
+            />
+          </div>
+          <div class="card__info">
+            <span class="card__id">#{{ reading.id }}</span>
+            <span class="card__ts">{{ reading.timestamp | date:'medium' }}</span>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
