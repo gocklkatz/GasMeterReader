@@ -3,6 +3,31 @@ info:
   title: Gas Meter API
   version: 1.0.0
 paths:
+  /auth/login:
+    post:
+      tags:
+        - auth
+      operationId: login
+      summary: Authenticate and receive a JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /readings/{id}:
     get:
       tags:
@@ -69,6 +94,30 @@ paths:
                 $ref: '#/components/schemas/Reading'
 components:
   schemas:
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    LoginResponse:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
     Reading:
       type: object
       properties:

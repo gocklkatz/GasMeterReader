@@ -1,6 +1,8 @@
-package io.gocklkatz.helloopenapi.auth;
+package io.gocklkatz.helloopenapi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.gocklkatz.helloopenapi.auth.JwtService;
+import io.gocklkatz.helloopenapi.config.GlobalExceptionHandler;
 import io.gocklkatz.helloopenapi.config.SecurityConfig;
 import io.gocklkatz.helloopenapi.config.UserConfig;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +15,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -20,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AuthController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, GlobalExceptionHandler.class})
 class AuthControllerTest {
 
     @Autowired
@@ -46,7 +49,7 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new LoginRequest("admin", "changeme"))))
+                        .content(objectMapper.writeValueAsString(Map.of("username", "admin", "password", "changeme"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("test-jwt-token"));
     }
@@ -55,7 +58,7 @@ class AuthControllerTest {
     void login_wrongPassword_returns401() throws Exception {
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new LoginRequest("admin", "wrongpass"))))
+                        .content(objectMapper.writeValueAsString(Map.of("username", "admin", "password", "wrongpass"))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").exists());
     }
@@ -64,7 +67,7 @@ class AuthControllerTest {
     void login_unknownUser_returns401() throws Exception {
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new LoginRequest("unknown", "changeme"))))
+                        .content(objectMapper.writeValueAsString(Map.of("username", "unknown", "password", "changeme"))))
                 .andExpect(status().isUnauthorized());
     }
 }
