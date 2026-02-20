@@ -44,7 +44,9 @@ authGuard       — redirects to /login if not logged in
 
 | Test file | What it covers |
 |---|---|
-| `app.spec.ts` | Root component, router outlet, nav links, logout button visibility |
+| `app.spec.ts` | Root component, router outlet, nav links, logout button visibility, logout() method |
+| `auth/auth.guard.spec.ts` | Guard returns `true` when logged in; returns UrlTree to `/login` when not |
+| `auth/auth.interceptor.spec.ts` | Bearer header injection, 401 → logout+redirect, error re-throw |
 | `auth/auth.service.spec.ts` | Login POST, token storage, logout, sessionStorage init |
 | `auth/login/login.spec.ts` | Form validation, submit, 401 vs generic errors, loading state |
 | `readings.service.spec.ts` | POST payload, GET list, image URL construction, error propagation |

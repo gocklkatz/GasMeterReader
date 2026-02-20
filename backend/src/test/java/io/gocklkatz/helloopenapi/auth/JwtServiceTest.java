@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class JwtServiceTest {
 
@@ -54,5 +55,12 @@ class JwtServiceTest {
         String token1 = jwtService.generateToken("alice");
         String token2 = jwtService.generateToken("bob");
         assertThat(token1).isNotEqualTo(token2);
+    }
+
+    @Test
+    void constructor_withSecretShorterThan32Chars_throwsIllegalStateException() {
+        assertThatThrownBy(() -> new JwtService("short", 86400000L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("app.security.jwt.secret must be at least 32 characters");
     }
 }

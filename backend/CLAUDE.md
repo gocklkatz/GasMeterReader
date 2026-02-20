@@ -78,8 +78,10 @@ Generated files live in `target/generated-sources/openapi/src/main/java/com/exam
 | `ReadingControllerTest` | `@WebMvcTest` + `@WithMockUser` | HTTP layer, request validation |
 | `WebConfigTest` | `@WebMvcTest` + `@Import(SecurityConfig)` | CORS allowed/disallowed origins |
 | `AuthControllerTest` | `@WebMvcTest` + `@Import(SecurityConfig)` | Login success/failure |
-| `JwtServiceTest` | Unit | Token generation, extraction, validation, expiry |
-| `ReadingServiceImplTest` | Unit | Service logic, content-type validation |
+| `JwtAuthenticationFilterTest` | Unit (`MockFilterChain`) | Filter branching: no/non-Bearer header, valid/invalid token, already-authenticated |
+| `ReadingControllerSecurityTest` | `@WebMvcTest` + `@Import(SecurityConfig)` (no `@WithMockUser`) | Unauthenticated 401 for all endpoints; valid JWT flow → 200 |
+| `JwtServiceTest` | Unit | Token generation, extraction, validation, expiry, short-secret guard |
+| `ReadingServiceImplTest` | Unit | Service logic, content-type validation (jpeg/png/webp/gif accepted) |
 | `ReadingRepositoryImplTest` | Unit | In-memory store, ID auto-increment |
 | `ImageStorageServiceLocalTest` | Unit (`@TempDir`) | Local file storage |
 | `S3ImageStorageServiceLocalTest` | Unit (mocked S3) | S3 upload logic |
@@ -87,7 +89,8 @@ Generated files live in `target/generated-sources/openapi/src/main/java/com/exam
 **`@WebMvcTest` notes with security:**
 - Add `@WithMockUser` (class-level) to controller tests — security checks are active
 - Add `@MockitoBean JwtService jwtService` — the JWT filter is loaded as a Filter and needs it
-- Tests that need CORS or `PasswordEncoder` must `@Import(SecurityConfig.class)`
+- Tests that need security rules (401 enforcement, CORS, `PasswordEncoder`) must `@Import(SecurityConfig.class)` + `@MockitoBean UserConfig userConfig`
+- `ReadingControllerTest.createReading_serviceThrowsIllegalArgumentException_returns400WithErrorBody` exercises `GlobalExceptionHandler` → HTTP 400 with `{"error":"…"}` body
 
 ### Tech Stack
 

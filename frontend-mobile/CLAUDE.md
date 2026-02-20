@@ -5,14 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-./gradlew app:assembleDebug                                                              # Build debug APK
-./gradlew app:installDebug                                                               # Install to connected device/emulator
-./gradlew app:testDebugUnitTest                                                          # Run unit tests
-./gradlew app:testDebugUnitTest --tests "com.example.greetingcard.ExampleUnitTest"      # Run a single test class
-./gradlew app:connectedAndroidTest                                                       # Instrumentation tests (requires device/emulator)
-./gradlew app:lint                                                                       # Lint
-./gradlew clean app:assembleDebug                                                        # Clean build
+./gradlew app:assembleDebug                                                                            # Build debug APK
+./gradlew app:installDebug                                                                             # Install to connected device/emulator
+./gradlew app:testEmulatorDebugUnitTest                                                                # Run JVM unit tests (emulator flavor)
+./gradlew app:testEmulatorDebugUnitTest --tests "com.example.greetingcard.ExampleUnitTest"            # Run a single test class
+./gradlew app:connectedAndroidTest                                                                     # Instrumentation tests (requires device/emulator)
+./gradlew app:lint                                                                                     # Lint
+./gradlew clean app:assembleDebug                                                                      # Clean build
 ```
+
+> **Note:** `testDeviceDebugUnitTest` requires `deviceBackendUrl` set in `local.properties`; use the `emulator` variant for CI and local JVM tests.
 
 ## Architecture
 
@@ -38,6 +40,18 @@ Single-activity app with Jetpack Compose Navigation (`NavHost`). Three screens: 
 - `network/` — Retrofit `ApiService`, Hilt network module
 - `ui/theme/` — Material 3 theme
 
+## Testing Strategy
+
+| Test file | Type | What it covers |
+|---|---|---|
+| `data/queue/UploadStatusConverterTest` | Unit | Enum ↔ String round-trip for all `UploadStatus` values; `IllegalArgumentException` for unknown string |
+| `ui/login/LoginViewModelTest` | Unit (MockK + coroutines-test) | Blank field validation, successful login, null token body, HTTP 401, network exception, `isLoading` state, field change + error clear |
+| `ui/history/HistoryViewModelTest` | Unit (MockK + coroutines-test) | Initial `Loading` state, success with timestamps sorted descending, error with message, empty list, retry resets to `Loading` then `Success` |
+
+`MainDispatcherRule` (in `test/…/com/example/greetingcard/`) replaces `Dispatchers.Main` with `StandardTestDispatcher` for ViewModel tests.
+
+Test dependencies: `mockk:1.13.13`, `kotlinx-coroutines-test:1.9.0`.
+
 ## Tech Stack
 
 - Kotlin 2.0.21, AGP 9.0.1, Gradle 9.2.1
@@ -52,5 +66,6 @@ Single-activity app with Jetpack Compose Navigation (`NavHost`). Three screens: 
 - Coil 2.7.0 (image loading)
 - Accompanist Permissions 0.37.0 (Compose camera permission handling)
 - Coroutines 1.9.0
+- MockK 1.13.13 + kotlinx-coroutines-test 1.9.0 (unit tests)
 - Min SDK 24, Target SDK 36
 - Dependency versions in `gradle/libs.versions.toml`

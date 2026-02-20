@@ -148,4 +148,49 @@ class ReadingServiceImplTest {
         assertThat(result).isEmpty();
         verify(readingRepository).findById(99);
     }
+
+    @Test
+    void createReading_imagePng_isAccepted() {
+        OffsetDateTime timestamp = OffsetDateTime.parse("2026-02-19T08:00:00Z");
+        MockMultipartFile image = new MockMultipartFile("image", "meter.png", "image/png", "content".getBytes());
+        Reading saved = new Reading(1, timestamp, "2026/02/19/reading_abc.png");
+
+        when(imageStorageService.store(image, timestamp)).thenReturn("2026/02/19/reading_abc.png");
+        when(readingRepository.save(any(Reading.class))).thenReturn(saved);
+
+        Reading result = readingService.createReading(image, timestamp);
+
+        assertThat(result.getId()).isEqualTo(1);
+        assertThat(result.getImagePath()).isEqualTo("2026/02/19/reading_abc.png");
+    }
+
+    @Test
+    void createReading_imageWebp_isAccepted() {
+        OffsetDateTime timestamp = OffsetDateTime.parse("2026-02-19T08:00:00Z");
+        MockMultipartFile image = new MockMultipartFile("image", "meter.webp", "image/webp", "content".getBytes());
+        Reading saved = new Reading(1, timestamp, "2026/02/19/reading_abc.webp");
+
+        when(imageStorageService.store(image, timestamp)).thenReturn("2026/02/19/reading_abc.webp");
+        when(readingRepository.save(any(Reading.class))).thenReturn(saved);
+
+        Reading result = readingService.createReading(image, timestamp);
+
+        assertThat(result.getId()).isEqualTo(1);
+        assertThat(result.getImagePath()).isEqualTo("2026/02/19/reading_abc.webp");
+    }
+
+    @Test
+    void createReading_imageGif_isAccepted() {
+        OffsetDateTime timestamp = OffsetDateTime.parse("2026-02-19T08:00:00Z");
+        MockMultipartFile image = new MockMultipartFile("image", "meter.gif", "image/gif", "content".getBytes());
+        Reading saved = new Reading(1, timestamp, "2026/02/19/reading_abc.gif");
+
+        when(imageStorageService.store(image, timestamp)).thenReturn("2026/02/19/reading_abc.gif");
+        when(readingRepository.save(any(Reading.class))).thenReturn(saved);
+
+        Reading result = readingService.createReading(image, timestamp);
+
+        assertThat(result.getId()).isEqualTo(1);
+        assertThat(result.getImagePath()).isEqualTo("2026/02/19/reading_abc.gif");
+    }
 }

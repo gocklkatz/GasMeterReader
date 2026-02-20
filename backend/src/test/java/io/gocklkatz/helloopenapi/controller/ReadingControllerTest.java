@@ -15,7 +15,6 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -150,14 +149,14 @@ class ReadingControllerTest {
     }
 
     @Test
-    void createReading_serviceThrowsException_propagatesOutOfController() {
+    void createReading_serviceThrowsIllegalArgumentException_returns400WithErrorBody() throws Exception {
         MockMultipartFile image = new MockMultipartFile("image", "meter.jpg", "image/jpeg", "fake content".getBytes());
-        when(readingService.createReading(any(), any())).thenThrow(new RuntimeException("Storage failure"));
+        when(readingService.createReading(any(), any())).thenThrow(new IllegalArgumentException("Unsupported content type"));
 
-        assertThatThrownBy(() -> mockMvc.perform(multipart("/readings")
+        mockMvc.perform(multipart("/readings")
                         .file(image)
-                        .param("timestamp", "2026-02-19T08:00:00Z")))
-                .hasRootCauseInstanceOf(RuntimeException.class)
-                .hasRootCauseMessage("Storage failure");
+                        .param("timestamp", "2026-02-19T08:00:00Z"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Unsupported content type"));
     }
 }

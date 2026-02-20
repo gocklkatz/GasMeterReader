@@ -1,8 +1,10 @@
 package io.gocklkatz.helloopenapi.config;
 
 import io.gocklkatz.helloopenapi.auth.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -46,11 +48,26 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((req, res, e) ->
+                                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/login", "/images/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
+    }
+
+    /**
+     * Prevents Spring Boot from auto-registering JwtAuthenticationFilter as a standalone
+     * servlet filter. It must only run inside the Spring Security filter chain so that
+     * SecurityContextHolderFilter has already set up the context before the JWT filter runs.
+     */
+    @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(JwtAuthenticationFilter filter) {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean

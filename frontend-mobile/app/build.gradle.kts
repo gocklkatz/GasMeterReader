@@ -17,8 +17,24 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
 
-        buildConfigField("String", "BACKEND_URL", "\"http://10.0.2.2:8080/\"")
+    flavorDimensions += "target"
+    productFlavors {
+        create("emulator") {
+            dimension = "target"
+            buildConfigField("String", "BACKEND_URL", "\"http://10.0.2.2:8080/\"")
+        }
+        create("device") {
+            dimension = "target"
+            val deviceUrl = rootProject.file("local.properties")
+                .takeIf { it.exists() }
+                ?.readLines()
+                ?.firstOrNull { it.startsWith("deviceBackendUrl=") }
+                ?.substringAfter("=")
+                ?: "http://localhost:8080/" // Set deviceBackendUrl in local.properties for real device builds
+            buildConfigField("String", "BACKEND_URL", "\"$deviceUrl\"")
+        }
     }
 
     buildTypes {
@@ -97,6 +113,8 @@ dependencies {
     ksp(libs.room.compiler)
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

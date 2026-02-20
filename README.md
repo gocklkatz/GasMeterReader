@@ -1,6 +1,6 @@
 # GasMeterReader
 
-Monorepo for a gas meter reading tracker. Photograph your gas meter each morning; the backend stores the image for later OCR and graphing. Three frontends share one backend API.
+Monorepo for a gas meter reading tracker. Photograph your gas meter each morning; the backend stores the image for later OCR and graphing. Two frontends share one backend API.
 
 ## Structure
 
