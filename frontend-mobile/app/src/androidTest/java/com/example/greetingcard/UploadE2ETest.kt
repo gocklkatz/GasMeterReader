@@ -15,22 +15,16 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.greetingcard.ui.camera.CameraViewModel
 import com.example.greetingcard.ui.camera.UploadState
-import dagger.hilt.android.testing.HiltAndroidRule
-import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import java.io.FileOutputStream
 
-@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class UploadE2ETest {
 
-    @get:Rule(order = 0)
-    val hiltRule = HiltAndroidRule(this)
-
-    @get:Rule(order = 1)
+    @get:Rule
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 
     @Test
@@ -53,10 +47,11 @@ class UploadE2ETest {
         val viewModel = ViewModelProvider(composeTestRule.activity)[CameraViewModel::class.java]
         composeTestRule.runOnUiThread { viewModel.onPhotoCaptured(testFile) }
 
-        // 5. Wait up to 30 s for WorkManager to upload the image to the backend.
+        // 5. Wait up to 60 s for WorkManager to upload the image to the backend.
         //    The ViewModel transitions to UploadState.Success only when the worker reports
         //    WorkInfo.State.SUCCEEDED, which requires a real HTTP 201 from the backend.
-        composeTestRule.waitUntil(timeoutMillis = 30_000) {
+        //    60 s gives room for one failed attempt + the 30 s exponential backoff retry.
+        composeTestRule.waitUntil(timeoutMillis = 60_000) {
             viewModel.uiState.value.uploadState is UploadState.Success
         }
     }

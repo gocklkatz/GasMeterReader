@@ -17,6 +17,10 @@ frontend-mobile/build/
 frontend-mobile/local.properties
 frontend-mobile/*.iml
 
+# E2E tests
+e2e/node_modules/
+e2e/test-results/
+
 # IDE / OS
 .DS_Store
 *.swp

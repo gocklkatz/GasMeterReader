@@ -2,21 +2,15 @@
 # run-e2e.sh — Full cross-platform E2E test orchestrator
 #
 # What it does (in order):
-#   1. Creates the AVD "GasMeterReader_API36" if it doesn't exist
+#   1. Creates the AVD "GasMeterReader_API36" if avdmanager is available,
+#      otherwise falls back to the first existing AVD in ~/.android/avd/
 #   2. Starts the Android emulator if none is connected
 #   3. Starts the Spring Boot backend on :8080
 #   4. Starts the Angular dev server on :4200
-#   5. Installs the debug APK on the emulator
+#   5. Installs the emulatorDebug APK on the emulator
 #   6. Runs UploadE2ETest (Android instrumented test)
 #   7. Runs the Playwright web test
 #   8. Cleans up background processes
-#
-# Prerequisites:
-#   - ANDROID_HOME set (e.g. ~/Library/Android/sdk)
-#   - avdmanager, sdkmanager, emulator, adb in PATH or under ANDROID_HOME
-#   - Java 21 (for the backend Maven build)
-#   - Node.js ≥ 18 (for Playwright)
-#   - npm install + npx playwright install run at least once in e2e/
 #
 # Usage:
 #   cd GasMeterReader
@@ -25,88 +19,98 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-AVD_NAME="GasMeterReader_API36"
 
-# Detect host architecture to pick the right ABI
-if [[ "$(uname -m)" == "arm64" ]]; then
-    ABI="arm64-v8a"
-else
-    ABI="x86_64"
+# ---- Environment setup -------------------------------------------------------
+# Android SDK
+: "${ANDROID_HOME:=$HOME/Library/Android/sdk}"
+export ANDROID_HOME
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+
+# Node.js via NVM (pick the highest installed version if NVM_NODE_VERSION unset)
+if [[ -z "${NVM_NODE_VERSION:-}" ]]; then
+    NVM_NODE_VERSION="$(ls "$HOME/.nvm/versions/node" 2>/dev/null | sort -V | tail -1)"
 fi
-SYSTEM_IMAGE="system-images;android-36;google_apis;${ABI}"
+if [[ -n "$NVM_NODE_VERSION" && -d "$HOME/.nvm/versions/node/$NVM_NODE_VERSION/bin" ]]; then
+    export PATH="$HOME/.nvm/versions/node/$NVM_NODE_VERSION/bin:$PATH"
+    echo ">>> Using Node $(node --version) from NVM ($NVM_NODE_VERSION)"
+fi
 
+# ---- State -------------------------------------------------------------------
 BACKEND_PID=""
 WEB_PID=""
 EMULATOR_PID=""
 
-# ---- Cleanup on exit ----------------------------------------------------------
+# ---- Cleanup on exit ---------------------------------------------------------
 cleanup() {
     echo ""
     echo ">>> Cleaning up..."
     [[ -n "$BACKEND_PID" ]] && kill "$BACKEND_PID" 2>/dev/null && echo "  Stopped backend (PID $BACKEND_PID)" || true
     [[ -n "$WEB_PID"     ]] && kill "$WEB_PID"     2>/dev/null && echo "  Stopped Angular (PID $WEB_PID)"   || true
-    # Leave emulator running if it was already running before this script started
+    # Only stop the emulator if this script started it
     [[ -n "$EMULATOR_PID" ]] && kill "$EMULATOR_PID" 2>/dev/null && echo "  Stopped emulator (PID $EMULATOR_PID)" || true
 }
 trap cleanup EXIT
 
-# ---- Helper: resolve SDK tool paths ------------------------------------------
-sdk_tool() {
-    local tool="$1"
-    # Try PATH first, then common ANDROID_HOME locations
-    if command -v "$tool" &>/dev/null; then
-        echo "$tool"
-    elif [[ -x "${ANDROID_HOME}/cmdline-tools/latest/bin/${tool}" ]]; then
-        echo "${ANDROID_HOME}/cmdline-tools/latest/bin/${tool}"
-    elif [[ -x "${ANDROID_HOME}/tools/bin/${tool}" ]]; then
-        echo "${ANDROID_HOME}/tools/bin/${tool}"
+# ---- 1. Resolve which AVD to use ---------------------------------------------
+AVD_NAME="GasMeterReader_API36"
+ABI="$([ "$(uname -m)" = "arm64" ] && echo "arm64-v8a" || echo "x86_64")"
+SYSTEM_IMAGE="system-images;android-36;google_apis;${ABI}"
+
+if command -v avdmanager &>/dev/null; then
+    echo ">>> Checking for AVD '$AVD_NAME'..."
+    if ! avdmanager list avd 2>/dev/null | grep -q "Name: ${AVD_NAME}"; then
+        echo ">>> Installing system image: $SYSTEM_IMAGE"
+        sdkmanager "$SYSTEM_IMAGE"
+        echo ">>> Creating AVD '$AVD_NAME' (API 36, ${ABI})"
+        echo "no" | avdmanager create avd \
+            --name    "$AVD_NAME" \
+            --package "$SYSTEM_IMAGE" \
+            --device  "pixel_6" \
+            --force
+        echo ">>> AVD '$AVD_NAME' created."
     else
-        echo "Error: '$tool' not found. Set ANDROID_HOME or add it to PATH." >&2
+        echo ">>> AVD '$AVD_NAME' already exists."
+    fi
+else
+    # cmdline-tools not installed — find the first existing AVD
+    echo ">>> avdmanager not found (cmdline-tools not installed)."
+    echo ">>> Scanning ~/.android/avd/ for an existing AVD..."
+    FOUND_AVD=""
+    for ini in "$HOME/.android/avd/"*.ini; do
+        [[ -f "$ini" ]] || continue
+        FOUND_AVD="$(basename "$ini" .ini)"
+        break
+    done
+    if [[ -z "$FOUND_AVD" ]]; then
+        echo "Error: No AVD found and avdmanager is not available."
+        echo "       Install 'Android SDK Command-line Tools' via"
+        echo "       Android Studio → SDK Manager → SDK Tools."
         exit 1
     fi
-}
-
-AVDMANAGER="$(sdk_tool avdmanager)"
-SDKMANAGER="$(sdk_tool sdkmanager)"
-EMULATOR="${ANDROID_HOME}/emulator/emulator"
-[[ -x "$EMULATOR" ]] || { echo "Error: emulator not found at $EMULATOR"; exit 1; }
-
-# ---- 1. Create AVD if it doesn't exist ---------------------------------------
-echo ">>> Checking for AVD '$AVD_NAME'..."
-if ! "$AVDMANAGER" list avd 2>/dev/null | grep -q "Name: ${AVD_NAME}"; then
-    echo ">>> AVD not found. Installing system image: $SYSTEM_IMAGE"
-    "$SDKMANAGER" "$SYSTEM_IMAGE"
-
-    echo ">>> Creating AVD '$AVD_NAME' (Pixel 6, API 36, ${ABI})"
-    echo "no" | "$AVDMANAGER" create avd \
-        --name    "$AVD_NAME" \
-        --package "$SYSTEM_IMAGE" \
-        --device  "pixel_6" \
-        --force
-    echo ">>> AVD '$AVD_NAME' created."
-else
-    echo ">>> AVD '$AVD_NAME' already exists."
+    AVD_NAME="$FOUND_AVD"
+    echo ">>> Using existing AVD: '$AVD_NAME'"
 fi
 
 # ---- 2. Start emulator if no emulator device is connected --------------------
-EMULATOR_WAS_RUNNING=false
-if adb devices 2>/dev/null | grep -qE "^emulator-[0-9]+[[:space:]]+device$"; then
-    echo ">>> Emulator already running — skipping emulator start."
-    EMULATOR_WAS_RUNNING=true
+EMULATOR="${ANDROID_HOME}/emulator/emulator"
+[[ -x "$EMULATOR" ]] || { echo "Error: emulator binary not found at $EMULATOR"; exit 1; }
+
+if "$ANDROID_HOME/platform-tools/adb" devices 2>/dev/null | grep -qE "^emulator-[0-9]+[[:space:]]+device$"; then
+    echo ">>> Emulator already running — skipping start."
 else
-    echo ">>> Starting emulator '$AVD_NAME'..."
-    "$EMULATOR" -avd "$AVD_NAME" -no-audio -no-snapshot-load &
+    echo ">>> Starting emulator '$AVD_NAME' (no audio, no snapshot)..."
+    "$EMULATOR" -avd "$AVD_NAME" -no-audio -no-snapshot-load -no-snapshot-save &
     EMULATOR_PID=$!
     echo "    Emulator PID: $EMULATOR_PID"
 
-    echo ">>> Waiting for emulator device to come online..."
-    adb wait-for-device
+    echo ">>> Waiting for emulator to come online..."
+    "$ANDROID_HOME/platform-tools/adb" wait-for-device
 
     echo ">>> Waiting for full boot (sys.boot_completed=1)..."
-    until adb shell getprop sys.boot_completed 2>/dev/null | grep -q "^1$"; do
+    until "$ANDROID_HOME/platform-tools/adb" shell getprop sys.boot_completed 2>/dev/null | grep -q "^1$"; do
         sleep 3
     done
-    echo ">>> Emulator ready."
+    echo ">>> Emulator fully booted."
 fi
 
 # ---- 3. Start Spring Boot backend --------------------------------------------
@@ -114,46 +118,59 @@ echo ">>> Starting Spring Boot backend..."
 cd "$REPO_ROOT/backend"
 ./mvnw spring-boot:run > /tmp/gas-meter-backend.log 2>&1 &
 BACKEND_PID=$!
-echo "    Backend PID: $BACKEND_PID  (log: /tmp/gas-meter-backend.log)"
+echo "    PID: $BACKEND_PID  |  log: /tmp/gas-meter-backend.log"
 
 # ---- 4. Start Angular dev server ---------------------------------------------
 echo ">>> Starting Angular dev server..."
 cd "$REPO_ROOT/frontend-web"
 npm start > /tmp/gas-meter-web.log 2>&1 &
 WEB_PID=$!
-echo "    Angular PID: $WEB_PID  (log: /tmp/gas-meter-web.log)"
+echo "    PID: $WEB_PID  |  log: /tmp/gas-meter-web.log"
 
 # ---- 5. Wait for backend to be ready -----------------------------------------
+# Use curl without -f so that any HTTP response (incl. 401) counts as "up"
 echo ">>> Waiting for backend on http://localhost:8080 ..."
-until curl -sf -o /dev/null http://localhost:8080/readings 2>/dev/null; do
+DEADLINE=$(( $(date +%s) + 120 ))
+until curl -s -o /dev/null http://localhost:8080/readings 2>/dev/null; do
+    [[ $(date +%s) -ge $DEADLINE ]] && { echo "Error: Backend did not start within 120 s. Check /tmp/gas-meter-backend.log"; exit 1; }
     sleep 2
 done
 echo ">>> Backend is ready."
 
 # ---- 6. Wait for Angular to be ready -----------------------------------------
 echo ">>> Waiting for Angular on http://localhost:4200 ..."
-until curl -sf -o /dev/null http://localhost:4200 2>/dev/null; do
+DEADLINE=$(( $(date +%s) + 120 ))
+until curl -s -o /dev/null http://localhost:4200 2>/dev/null; do
+    [[ $(date +%s) -ge $DEADLINE ]] && { echo "Error: Angular did not start within 120 s. Check /tmp/gas-meter-web.log"; exit 1; }
     sleep 2
 done
 echo ">>> Angular is ready."
 
-# ---- 7. Build and install the emulator APK -----------------------------------
-echo ">>> Installing emulatorDebug APK on emulator..."
+# ---- 7. Run the Android instrumented E2E test --------------------------------
+# Uninstall any stale package first to avoid install-commit failures.
+echo ">>> Cleaning up stale packages on emulator (if any)..."
+"$ANDROID_HOME/platform-tools/adb" uninstall com.example.greetingcard      2>/dev/null || true
+"$ANDROID_HOME/platform-tools/adb" uninstall com.example.greetingcard.test 2>/dev/null || true
+sleep 5
+
+# Install the app APK first so we can grant camera permission before the test
+# runs (the subsequent connectedEmulatorDebugAndroidTest does an upgrade install
+# which preserves runtime permissions on Android 6+).
+echo ">>> Installing app APK..."
 cd "$REPO_ROOT/frontend-mobile"
 ./gradlew app:installEmulatorDebug
-echo ">>> APK installed."
 
-# ---- 8. Run the Android instrumented E2E test --------------------------------
+echo ">>> Granting camera permission (avoids system dialog during UI test)..."
+"$ANDROID_HOME/platform-tools/adb" shell pm grant com.example.greetingcard android.permission.CAMERA
+
 echo ">>> Running UploadE2ETest on emulator..."
-cd "$REPO_ROOT/frontend-mobile"
 ./gradlew app:connectedEmulatorDebugAndroidTest \
     -Pandroid.testInstrumentationRunnerArguments.class=com.example.greetingcard.UploadE2ETest
 echo ">>> Android E2E test passed."
 
-# ---- 9. Run the Playwright web test ------------------------------------------
+# ---- 8. Install Playwright deps and run web test -----------------------------
 echo ">>> Running Playwright web test..."
 cd "$REPO_ROOT/e2e"
-# Install dependencies and browsers on first run
 npm install
 npx playwright install --with-deps chromium
 npx playwright test
